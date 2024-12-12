@@ -18,12 +18,8 @@ blacklist=["examen", "jugar", "escape room", "resultados", "subnetting", "cidr",
 init()
 
 try:
-    # TODO: Modify this section so it works on Windows too
-    # Configure the browser
-    options = webdriver.FirefoxOptions()
-    options.browser_location = "/usr/bin/firefox"
-    service = webdriver.firefox.service.Service(executable_path="/snap/bin/geckodriver")
-    driver = webdriver.Firefox(service=service, options=options)
+    options = webdriver.ChromeOptions()
+    driver = webdriver.Chrome(options=options)
 
     driver.get(login_url)
     wait = WebDriverWait(driver, 10).until(

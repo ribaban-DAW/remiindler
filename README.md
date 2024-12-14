@@ -27,7 +27,12 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-3. Run the script
+3. Install dependencies
+```
+python3 -m pip install -r requirements.txt
+```
+
+4. Run the script
 ```
 python3 main.py
 ```
@@ -41,10 +46,26 @@ python3 -m venv venv
 
 2. Activate the virtual environment
 ```
-source venv/bin/activate
+venv/Scripts/activate
 ```
 
-3. Run the script
+> [!NOTE]
+> If this fails, you might have to execute the following command, then try again.
+> ```powershell
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+> Reference: https://docs.python.org/3/library/venv.html#creating-virtual-environments
+
+3. Install dependencies
+```
+python3 -m pip install -r requirements.txt
+```
+
+4. Run the script
 ```
 python3 main.py
 ```
+
+## Contribution
+
+If you find any bug or have any suggestions feel free to submit an [issue](https://github.com/ribaban-DAW/remiindler/issues/new).

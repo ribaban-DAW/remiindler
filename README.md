@@ -11,9 +11,20 @@ Simple script to **remind** any missing assignment in **Moodle**. Written in Pyt
 
 First of all, create a `.env` file following the `.env.example`
 ```
-ENV_USER="your_username"
-ENV_PASS="your_password"
+ENV_USER=your_username
+ENV_PASS=your_password
 ```
+
+> [!NOTE]
+> If you use special characters at the beginning, such as `'`, `"`, `\`, `#`, add `\` before it.
+> For example:
+> ```
+> 'HelloWorld
+> ```
+> Would become:
+> ```
+> \'HelloWorld
+> ```
 
 ### Linux
 

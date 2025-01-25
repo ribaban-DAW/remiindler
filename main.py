@@ -29,7 +29,7 @@ def parse_env(env_var):
     return parsed_data
 
 def setup_driver():
-    dev_flag = True
+    dev_flag = False
 
     if dev_flag:
         # I still have to figure out a global way to do it, maybe installing a browser locally

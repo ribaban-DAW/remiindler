@@ -29,18 +29,9 @@ def parse_env(env_var):
     return parsed_data
 
 def setup_driver():
-    dev_flag = False
-
-    if dev_flag:
-        # I still have to figure out a global way to do it, maybe installing a browser locally
-        options = webdriver.FirefoxOptions()
-        options.browser_location = "/usr/bin/firefox"
-        options.add_argument("--headless")
-        driver = webdriver.Firefox(options=options)
-    else:
-        options = webdriver.ChromeOptions()
-        options.add_argument("--headless=new")
-        driver = webdriver.Chrome(options=options)
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    driver = webdriver.Chrome(options=options)
 
     return driver
 

@@ -4,8 +4,8 @@
 
 Simple script to **remind** any missing assignment in **Moodle**. Written in Python using [Selenium](https://www.selenium.dev/).
 
-> [!NOTE]
-> IDs are hardcoded for my current subjects :rofl:
+> [!IMPORTANT]
+> Timeline must be enabled! If you don't have it, you have to enable it manually. In the future it will be enabled automatically.
 
 ## 🏡 Setup
 

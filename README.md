@@ -4,8 +4,8 @@
 
 Simple script para **recordar** cualquier asignatura que falte por entregar en **Moodle**. Escrito en Python usando [Selenium](https://www.selenium.dev/).
 
-> [!NOTE]
-> Los IDS están hardcodeados para mis asignaturas :rofl:
+> [!IMPORTANT]
+> ¡La Línea de tiempo debe estar activada! Si no lo tienes, lo tienes que activar manualmente. En el futuro será activado automáticamente.
 
 ## 🏡 Setup
 

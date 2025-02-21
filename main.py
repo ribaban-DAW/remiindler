@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from colorama import init, Fore, Style
 from dotenv import load_dotenv
+from time import sleep
 import os
 import sys
 
@@ -48,27 +49,62 @@ def login(driver, username, password):
     login_btn = driver.find_element(By.CLASS_NAME, "btn-submit")
     login_btn.click()
 
+#def get_missing_assignments(driver, blacklist_filename):
+#    log_info("Getting missing assignments...")
+#    subject_url = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/mod/assign/index.php?id="
+#    try:
+#        blacklist = (''.join(open(blacklist_filename, 'r')).lower()).split('\n')
+#        blacklist.pop(len(blacklist) - 1)
+#    except Exception as e:
+#        blacklist = []
+#    ids = {9051: "Sostenibilidad", 4011: "BBDD", 6585: "Entornos", 6584: "LDM", 4162: "Digitalización", 4161: "IPE", 4008: "Programación", 4000: "Sistemas"}
+#    assignments = []
+#
+#    for key in ids:
+#        driver.get(subject_url + str(key))
+#        wait = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
+#
+#        table = driver.find_element(By.CLASS_NAME, "generaltable")
+#        rows = table.find_elements(By.XPATH, ".//tr")
+#        for row in rows:
+#            if any(x in row.text.lower() for x in blacklist) or "no entregado" not in row.text.lower():
+#                continue
+#            assignments.append({ids[key]: row.text})
+#            print(f"{Fore.YELLOW}{ids[key]}: {Style.RESET_ALL}{row.text}")
+#
+#    return assignments
+
 def get_missing_assignments(driver, blacklist_filename):
     log_info("Getting missing assignments...")
-    subject_url = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/mod/assign/index.php?id="
-    blacklist = (''.join(open(blacklist_filename, 'r')).lower()).split('\n')
-    blacklist.pop(len(blacklist) - 1)
-    ids = {9051: "Sostenibilidad", 4011: "BBDD", 6585: "Entornos", 6584: "LDM", 4162: "Digitalización", 4161: "IPE", 4008: "Programación", 4000: "Sistemas"}
-    assignments = []
+    menu = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/my/"
+    driver.get(menu)
 
-    for key in ids:
-        driver.get(subject_url + str(key))
-        wait = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
+    log_info("Loading blacklist...")
+    try:
+        blacklist = (''.join(open(blacklist_filename, 'r')).lower()).split('\n')
+        blacklist.pop(len(blacklist) - 1)
+    except Exception as e:
+        blacklist = []
 
-        table = driver.find_element(By.CLASS_NAME, "generaltable")
-        rows = table.find_elements(By.XPATH, ".//tr")
-        for row in rows:
-            if any(x in row.text.lower() for x in blacklist) or "no entregado" not in row.text.lower():
-                continue
-            assignments.append({ids[key]: row.text})
-            print(f"{Fore.YELLOW}{ids[key]}: {Style.RESET_ALL}{row.text}")
+    is_error = True
+    try:
+        wait = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Mostrar más actividades')]")))
+        while True:
+            button = driver.find_element(By.XPATH, "//button[contains(text(), 'Mostrar más actividades')]")
+            button.click()
+            sleep(3)
+    except:
+        pass
 
-    return assignments
+    anchors = driver.find_elements(By.XPATH, ".//a[contains(@title, 'Vencimiento')]")
+    for anchor in anchors:
+        is_error = False
+        if any(x in anchor.text.lower() for x in blacklist):
+            continue
+        log_info(f"{Fore.YELLOW}Name: {Style.RESET_ALL}{anchor.text} | {Fore.YELLOW}Link: {Style.RESET_ALL}{anchor.get_property('href')}")
+
+    if is_error:
+        log_error("Couldn't find anchors. Are you sure Timeline is enabled?")
 
 if __name__ == "__main__":
     blacklist_filename = "blacklist.txt"

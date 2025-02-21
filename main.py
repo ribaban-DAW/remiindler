@@ -78,34 +78,33 @@ def get_missing_assignments(driver, blacklist_filename):
     log_info("Getting missing assignments...")
     menu = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/my/"
     driver.get(menu)
-    wait = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "card-body")))
-    divs = driver.find_elements(By.CLASS_NAME, "card-body")
-    has_timeline = False
-    timeline_div = None
-    for div in divs:
-        try:
-            title = div.find_element(By.TAG_NAME, "h3")
-            if title.text == "Línea de tiempo":
-                has_timeline = True
-                timeline_div = div
-                break
-        except:
-            pass
 
-    if has_timeline:
-        wait = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Mostrar más actividades')]")))
-        try:
-            while True:
-                button = driver.find_element(By.XPATH, "//button[contains(text(), 'Mostrar más actividades')]")
-                button.click()
-                sleep(3)
-        except:
-            pass
+    log_info("Loading blacklist...")
+    try:
+        blacklist = (''.join(open(blacklist_filename, 'r')).lower()).split('\n')
+        blacklist.pop(len(blacklist) - 1)
+    except Exception as e:
+        blacklist = []
 
-        anchors = driver.find_elements(By.XPATH, ".//a[contains(@title, 'Vencimiento')]")
-        for anchor in anchors:
-            print(anchor.text)
+    is_error = True
+    try:
+        wait = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Mostrar más actividades')]")))
+        while True:
+            button = driver.find_element(By.XPATH, "//button[contains(text(), 'Mostrar más actividades')]")
+            button.click()
+            sleep(3)
+    except:
+        pass
 
+    anchors = driver.find_elements(By.XPATH, ".//a[contains(@title, 'Vencimiento')]")
+    for anchor in anchors:
+        is_error = False
+        if any(x in anchor.text.lower() for x in blacklist):
+            continue
+        log_info(f"{Fore.YELLOW}Name: {Style.RESET_ALL}{anchor.text} | {Fore.YELLOW}Link: {Style.RESET_ALL}{anchor.get_property('href')}")
+
+    if is_error:
+        log_error("Couldn't find anchors. Are you sure Timeline is enabled?")
 
 if __name__ == "__main__":
     blacklist_filename = "blacklist.txt"

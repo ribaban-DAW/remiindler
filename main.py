@@ -10,6 +10,9 @@ import sys
 def log_error(msg):
     print(f"{Fore.RED}[ERROR] {Style.RESET_ALL}{msg}", file = sys.stderr)
 
+def log_warning(msg):
+    print(f"{Fore.YELLOW}[WARNING] {Style.RESET_ALL}{msg}", file = sys.stderr)
+
 def log_info(msg):
     print(f"{Fore.GREEN}[INFO] {Style.RESET_ALL}{msg}")
 
@@ -51,8 +54,11 @@ def login(driver, username, password):
 def get_missing_assignments(driver, blacklist_filename):
     log_info("Getting missing assignments...")
     subject_url = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/mod/assign/index.php?id="
-    blacklist = (''.join(open(blacklist_filename, 'r')).lower()).split('\n')
-    blacklist.pop(len(blacklist) - 1)
+
+    blacklist = []
+    if blacklist_filename != "":
+        blacklist = (''.join(open(blacklist_filename, 'r')).lower()).split('\n')
+        blacklist.pop(len(blacklist) - 1)
     ids = {9051: "Sostenibilidad", 4011: "BBDD", 6585: "Entornos", 6584: "LDM", 4162: "Digitalización", 4161: "IPE", 4008: "Programación", 4000: "Sistemas"}
     assignments = []
 
@@ -80,9 +86,6 @@ if __name__ == "__main__":
                 log_error("Blacklist file not provided")
                 sys.exit(1)
             blacklist_filename = sys.argv[2]
-            if not os.path.isfile(blacklist_filename):
-                log_error("Can't open the blacklist")
-                sys.exit(1)
         elif flag == "-h" or flag == "--help":
             print(f"""Usage: python3 {sys.argv[0]} [FLAG]... [FILE]...
 Example: python3 {sys.argv[0]} -b blacklist.txt
@@ -94,6 +97,10 @@ Available FLAGS:
         else:
             log_error("Unrecognised flag, use --help to see the available flags")
             sys.exit(1)
+
+    if not os.path.isfile(blacklist_filename):
+        log_warning("Can't open the blacklist, ignoring...")
+        blacklist_filename = ""
 
     load_dotenv()
     username = parse_env("ENV_USER")

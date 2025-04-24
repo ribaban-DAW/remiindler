@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from colorama import init, Fore, Style
 from dotenv import load_dotenv
+import readline
 import os
 import sys
 
@@ -27,34 +28,97 @@ logger = Logger()
 
 class Assignment:
 
-    def __init__(self, id, name, text, date, url):
+    def __init__(self, id, name, title, date, url):
+        self.title = title
+        self.date = date
+        self.url = url
+
+    def print(self):
+        print(f"[{self.title}]({Fore.BLUE}{self.url}{Style.RESET_ALL} | {self.date})")
+
+
+class Subject:
+
+    def __init__(self, id, name, url):
         self.id = id
         self.name = name
-        self.text = text
-        self.date = date
         self.url = url
         self.assignments = []
 
     def print(self):
-        print(f"{Fore.YELLOW}ID {self.id} ({self.name}): {Style.RESET_ALL}[{self.text} ({self.date})]({Fore.BLUE}{self.url}{Style.RESET_ALL})")
+        print(f"{Fore.YELLOW}{self.name} ({self.id}):{Style.RESET_ALL}")
+        for assignment in self.assignments:
+            print("  ", end="")
+            assignment.print()
 
 class Remiindler:
 
-    def __init__(self, subject_url, subject_ids):
-        self._setup()
-        self.subject_url = subject_url
+    def __init__(self, subject_base_url, subject_ids):
+        self.subject_base_url = subject_base_url
         self.subject_ids = subject_ids
-        self.assignments = []
+        self.subjects = []
+        self._driver = None
+        self._is_scrapped = False
 
-    def scrap_assignments(self, driver):
-        self._login(driver)
-        logger.info("Getting missing assignments...")
+        self._setup()
 
+
+    def tui(self):
+        is_running = True
+        options = {
+            1: "Get Assignments",
+            2: "Generate HTML",
+            3: "Show Configuration"
+        }
+
+        while is_running:
+            print("""1. Get Assignments
+2. Generate HTML
+3. Show Configuration
+4. Quit""")
+            try:
+                option = int(input("> "))
+                match option:
+
+                    case 1:
+                        try:
+                            self.get_assignments()
+                        except Exception as e:
+                            print(e)
+
+                    case 2:
+                        print("Generating HTML")
+
+                    case 3:
+                        print("Showing Configuration")
+
+                    case 4:
+                        is_running = False
+                        self._driver.quit()
+                        print("Bye")
+
+                    case _:
+                        print("Unknown option")
+            except Exception as e:
+                print("Unknown option")
+
+    def _scrap_assignments(self, is_forced = False):
+        if self._is_scrapped and not is_forced:
+            return
+
+        self._login()
+        logger.info("Scrapping missing assignments...")
+
+        index = 0
         for id in self.subject_ids:
-            driver.get(self.subject_url + str(id))
-            wait = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
+            subject_url = self.subject_base_url + str(id)
+            subject = Subject(id, self.subject_ids[id], subject_url)
+            self.subjects.append(subject)
 
-            table = driver.find_element(By.CLASS_NAME, "generaltable")
+            self._driver.get(subject_url)
+            wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
+
+            table = self._driver.find_element(By.CLASS_NAME, "generaltable")
             rows = table.find_elements(By.XPATH, ".//tr")
             for row in rows:
                 if any(x in row.text.lower() for x in self.blacklist) or "no entregado" not in row.text.lower():
@@ -66,10 +130,14 @@ class Remiindler:
                 column = row.find_element(By.XPATH, "//td[@class='cell c2']")
                 date = "" if not column else column.text
                 assignment = Assignment(id, self.subject_ids[id], text, date, url)
-                self.assignments.append(assignment)
-                assignment.print()
+                self.subjects[index].assignments.append(assignment)
+            index += 1
+        self._is_scrapped = True
 
-        return self.assignments
+    def get_assignments(self, is_forced = False):
+        self._scrap_assignments(is_forced)
+        for subject in self.subjects:
+            subject.print()
 
     def _setup(self):
         blacklist_filename = "blacklist.txt"
@@ -94,6 +162,11 @@ class Remiindler:
         load_dotenv()
         self.username = self._parse_env("ENV_USER")
         self.password = self._parse_env("ENV_PASS")
+
+        try:
+            self._driver = self._setup_driver()
+        except Exception as e:
+            print("Couldn't setup the driver", file=sys.stderr)
 
     def _usage(self):
         print(f"""Usage: python3 {sys.argv[0]} [FLAG]... [FILE]...
@@ -129,45 +202,40 @@ Available FLAGS:
 
         return parsed_data
 
-    def _login(self, driver):
+    def _login(self):
         logger.info("Logging in...")
         login_url = "https://edea.juntadeandalucia.es/cas/login?service=https%3A%2F%2Feducacionadistancia.juntadeandalucia.es%2Fcentros%2Fmalaga%2Flogin%2Findex.php%3FauthCAS%3DCAS"
-        driver.get(login_url)
-        wait = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "username")))
+        self._driver.get(login_url)
+        wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.ID, "username")))
 
-        user_input = driver.find_element(By.ID, "username")
+        user_input = self._driver.find_element(By.ID, "username")
         user_input.send_keys(self.username)
-        password_input = driver.find_element(By.ID, "password")
+        password_input = self._driver.find_element(By.ID, "password")
         password_input.send_keys(self.password)
-        login_btn = driver.find_element(By.CLASS_NAME, "btn-submit")
+        login_btn = self._driver.find_element(By.CLASS_NAME, "btn-submit")
         login_btn.click()
 
 
-def setup_driver():
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    driver = webdriver.Chrome(options=options)
+    def _setup_driver(self):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
+        driver = webdriver.Chrome(options=options)
 
-    return driver
+        return driver
 
 
 if __name__ == "__main__":
     subject_url = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/mod/assign/index.php?id="
-    subject_ids = {9051: "Sostenibilidad", 4011: "BBDD", 6585: "Entornos", 6584: "LDM", 4162: "Digitalización", 4161: "IPE", 4008: "Programación", 4000: "Sistemas"}
+    subject_ids = {
+        9051: "Sostenibilidad",
+        4011: "Base de Datos",
+        6585: "Entornos de Desarrollo",
+        6584: "Lenguaje de Marcas",
+        4162: "Digitalización",
+        4161: "IPE",
+        4008: "Programación",
+        4000: "Sistemas Informáticos",
+    }
 
     remiindler = Remiindler(subject_url, subject_ids)
-    driver = None
-
-    try:
-        driver = setup_driver()
-        assignments = remiindler.scrap_assignments(driver)
-
-    except Exception as e:
-        if driver:
-            print(e)
-        else:
-            print("Couldn't setup the driver", file=sys.stderr)
-
-    finally:
-        if driver:
-            driver.quit()
+    remiindler.tui()

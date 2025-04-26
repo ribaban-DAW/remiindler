@@ -4,26 +4,46 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from colorama import init, Fore, Style
 from dotenv import load_dotenv
+import webbrowser
 import readline
 import os
 import sys
 
-class Logger:
+class LoggerLevel():
+    DEBUG   = 1 << 0
+    INFO    = 1 << 1
+    WARNING = 1 << 2
+    ERROR   = 1 << 3
 
-    def __init__(self):
+    NONE = 0
+    DEFAULT = INFO | WARNING | ERROR
+    ALL = DEBUG | INFO | WARNING | ERROR
+
+class Logger():
+
+    def __init__(self, level = LoggerLevel.DEFAULT):
         init()
-
-    def error(self, msg):
-        print(f"{Fore.RED}[ERROR] {Style.RESET_ALL}{msg}", file = sys.stderr)
-
-    def warning(self, msg):
-        print(f"{Fore.YELLOW}[WARNING] {Style.RESET_ALL}{msg}", file = sys.stderr)
-
-    def info(self, msg):
-        print(f"{Fore.GREEN}[INFO] {Style.RESET_ALL}{msg}")
+        self.level = level
 
     def debug(self, msg):
+        if not LoggerLevel.DEBUG & self.level:
+            return
         print(f"{Fore.BLUE}[DEBUG] {Style.RESET_ALL}{msg}")
+
+    def info(self, msg):
+        if not LoggerLevel.INFO & self.level:
+            return
+        print(f"{Fore.GREEN}[INFO] {Style.RESET_ALL}{msg}")
+
+    def warning(self, msg):
+        if not LoggerLevel.WARNING & self.level:
+            return
+        print(f"{Fore.YELLOW}[WARNING] {Style.RESET_ALL}{msg}", file = sys.stderr)
+
+    def error(self, msg):
+        if not LoggerLevel.ERROR & self.level:
+            return
+        print(f"{Fore.RED}[ERROR] {Style.RESET_ALL}{msg}", file = sys.stderr)
 
 
 logger = Logger()
@@ -74,22 +94,25 @@ class Remiindler:
         ]
 
         while True:
+            print("\nAvailable options:")
+            print("-----------------------")
             for i in range(len(options)):
-                logger.info(f"{i + 1}. {options[i]['name']}")
+                print(f"{i + 1}. {options[i]['name']}")
+            print("-----------------------")
 
             try:
-                option = int(input("> "))
+                option = int(input("Select an option: "))
                 option -= 1
                 if option < 0 or option >= len(options):
                     logger.error("Unknown option")
                     continue
                 elif option == len(options) - 1:
                     self._driver.quit()
-                    logger.info("Bye")
+                    print("Bye")
                     return
 
                 try:
-                    logger.info(f"Selected {options[option]['name']}")
+                    logger.info(f"Selected '{options[option]['name']}'")
                     options[option]["func"]()
                 except Exception as e:
                     logger.error(e)
@@ -103,43 +126,45 @@ class Remiindler:
             subject.print()
 
     def generate_html(self):
-        logger.warning("TODO")
+        self._scrap_assignments()
+        with open("index.html", "w") as f:
+            f.write("""<html>
+<head>
+<title>Remiindler</title>
+<style>
+:root {
+	color-scheme: dark light;
+	--background-primary: #222222;
+	--foreground-primary: #dddddd;
+}
+
+@media (prefers-color-scheme: light) {
+	:root {
+		--background-primary: #ddd;
+		--foreground-primary: #222;
+	}
+}
+
+body {
+	background-color: var(--background-primary);
+	color: var(--foreground-primary);
+}
+</style>
+</head>
+<body>
+""")
+            for subject in self.subjects:
+                subject.name
+                f.write(f"<h1>{subject.name}</h1>")
+                for assignment in subject.assignments:
+                    f.write(f"<p><a href='{assignment.url}' target='_blank' rel='noopener noreferrer' >{assignment.title}</a> | {assignment.date}</p>")
+            f.write("</body>\n</html>")
+        logger.info("'index.html' generated")
+        webbrowser.open("index.html")
+
 
     def show_config(self):
         logger.warning("TODO")
-
-    def _scrap_assignments(self, is_forced = False):
-        if self._is_scrapped and not is_forced:
-            return
-
-        self._login()
-
-        index = 0
-        for id in self.subject_ids:
-            subject_url = self.subject_base_url + str(id)
-            subject = Subject(id, self.subject_ids[id], subject_url)
-            logger.info(f"Scrapping '{subject.name}' missing assignments...")
-            self.subjects.append(subject)
-
-            logger.debug(f"Subject URL: {subject_url}")
-            self._driver.get(subject_url)
-            wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
-
-            table = self._driver.find_element(By.CLASS_NAME, "generaltable")
-            rows = table.find_elements(By.XPATH, ".//tr")
-            for row in rows:
-                if any(x in row.text.lower() for x in self.blacklist) or "no entregado" not in row.text.lower():
-                    continue
-                anchor = row.find_element(By.TAG_NAME, "a")
-                url = "" if not anchor else anchor.get_attribute("href")
-                text = "" if not anchor else anchor.text
-
-                column = row.find_element(By.XPATH, "//td[@class='cell c2']")
-                date = "" if not column else column.text
-                assignment = Assignment(id, self.subject_ids[id], text, date, url)
-                self.subjects[index].assignments.append(assignment)
-            index += 1
-        self._is_scrapped = True
 
     def _setup(self):
         blacklist_filename = "blacklist.txt"
@@ -159,7 +184,7 @@ class Remiindler:
                 logger.error("Unrecognised flag, use --help to see the available flags")
                 sys.exit(1)
 
-        self.set_blacklist(blacklist_filename)
+        self._set_blacklist(blacklist_filename)
 
         load_dotenv()
         self.username = self._parse_env("ENV_USER")
@@ -179,7 +204,7 @@ Available FLAGS:
 -b, --blacklist <file>          Use <file> as blacklist file to avoid matching the words contained in it
 -h, --help                      Display this information""")
 
-    def set_blacklist(self, blacklist_filename = "blacklist.txt"):
+    def _set_blacklist(self, blacklist_filename = "blacklist.txt"):
         if not os.path.isfile(blacklist_filename):
             logger.warning("Can't open the blacklist, ignoring...")
             blacklist_filename = ""
@@ -213,12 +238,47 @@ Available FLAGS:
 
         user_input = self._driver.find_element(By.ID, "username")
         user_input.send_keys(self.username)
+        logger.debug("Introduced username")
         password_input = self._driver.find_element(By.ID, "password")
         password_input.send_keys(self.password)
+        logger.debug("Introduced password")
         login_btn = self._driver.find_element(By.CLASS_NAME, "btn-submit")
         login_btn.click()
+        logger.debug("Logged in")
         wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "menu-logo-nombre")))
 
+    def _scrap_assignments(self, is_forced = False):
+        if self._is_scrapped and not is_forced:
+            return
+
+        self._login()
+
+        index = 0
+        for id in self.subject_ids:
+            subject_url = self.subject_base_url + str(id)
+            subject = Subject(id, self.subject_ids[id], subject_url)
+            logger.info(f"Scrapping '{subject.name}' missing assignments...")
+            self.subjects.append(subject)
+
+            logger.debug(f"Subject URL: {subject_url}")
+            self._driver.get(subject_url)
+            wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
+
+            table = self._driver.find_element(By.CLASS_NAME, "generaltable")
+            rows = table.find_elements(By.XPATH, ".//tr")
+            for row in rows:
+                if any(x in row.text.lower() for x in self.blacklist) or "no entregado" not in row.text.lower():
+                    continue
+                anchor = row.find_element(By.TAG_NAME, "a")
+                url = "" if not anchor else anchor.get_attribute("href")
+                text = "" if not anchor else anchor.text
+
+                column = row.find_element(By.XPATH, "//td[@class='cell c2']")
+                date = "" if not column else column.text
+                assignment = Assignment(id, self.subject_ids[id], text, date, url)
+                self.subjects[index].assignments.append(assignment)
+            index += 1
+        self._is_scrapped = True
 
     def _setup_driver(self):
         options = webdriver.ChromeOptions()

@@ -1,3 +1,4 @@
+pyreadline3
 colorama
 selenium
 python-dotenv

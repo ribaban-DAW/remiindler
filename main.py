@@ -22,6 +22,9 @@ class Logger:
     def info(self, msg):
         print(f"{Fore.GREEN}[INFO] {Style.RESET_ALL}{msg}")
 
+    def debug(self, msg):
+        print(f"{Fore.BLUE}[DEBUG] {Style.RESET_ALL}{msg}")
+
 
 logger = Logger()
 
@@ -62,59 +65,63 @@ class Remiindler:
 
         self._setup()
 
-
     def tui(self):
-        is_running = True
-        options = {
-            1: "Get Assignments",
-            2: "Generate HTML",
-            3: "Show Configuration"
-        }
+        options = [
+            {"name": "Get Assignments", "func": self.get_assignments},
+            {"name": "Generate HTML", "func": self.generate_html},
+            {"name": "Show Configuration", "func": self.show_config},
+            {"name": "Quit"},
+        ]
 
-        while is_running:
-            print("""1. Get Assignments
-2. Generate HTML
-3. Show Configuration
-4. Quit""")
+        while True:
+            for i in range(len(options)):
+                logger.info(f"{i + 1}. {options[i]['name']}")
+
             try:
                 option = int(input("> "))
-                match option:
+                option -= 1
+                if option < 0 or option >= len(options):
+                    logger.error("Unknown option")
+                    continue
+                elif option == len(options) - 1:
+                    self._driver.quit()
+                    logger.info("Bye")
+                    return
 
-                    case 1:
-                        try:
-                            self.get_assignments()
-                        except Exception as e:
-                            print(e)
+                try:
+                    logger.info(f"Selected {options[option]['name']}")
+                    options[option]["func"]()
+                except Exception as e:
+                    logger.error(e)
 
-                    case 2:
-                        print("Generating HTML")
-
-                    case 3:
-                        print("Showing Configuration")
-
-                    case 4:
-                        is_running = False
-                        self._driver.quit()
-                        print("Bye")
-
-                    case _:
-                        print("Unknown option")
             except Exception as e:
-                print("Unknown option")
+                logger.error("Unknown option")
+
+    def get_assignments(self, is_forced = False):
+        self._scrap_assignments(is_forced)
+        for subject in self.subjects:
+            subject.print()
+
+    def generate_html(self):
+        logger.warning("TODO")
+
+    def show_config(self):
+        logger.warning("TODO")
 
     def _scrap_assignments(self, is_forced = False):
         if self._is_scrapped and not is_forced:
             return
 
         self._login()
-        logger.info("Scrapping missing assignments...")
 
         index = 0
         for id in self.subject_ids:
             subject_url = self.subject_base_url + str(id)
             subject = Subject(id, self.subject_ids[id], subject_url)
+            logger.info(f"Scrapping '{subject.name}' missing assignments...")
             self.subjects.append(subject)
 
+            logger.debug(f"Subject URL: {subject_url}")
             self._driver.get(subject_url)
             wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
 
@@ -134,11 +141,6 @@ class Remiindler:
             index += 1
         self._is_scrapped = True
 
-    def get_assignments(self, is_forced = False):
-        self._scrap_assignments(is_forced)
-        for subject in self.subjects:
-            subject.print()
-
     def _setup(self):
         blacklist_filename = "blacklist.txt"
 
@@ -151,7 +153,7 @@ class Remiindler:
                     sys.exit(1)
                 blacklist_filename = sys.argv[2]
             elif flag == "-h" or flag == "--help":
-                self.usage()
+                self._usage()
                 sys.exit(0)
             else:
                 logger.error("Unrecognised flag, use --help to see the available flags")
@@ -166,10 +168,11 @@ class Remiindler:
         try:
             self._driver = self._setup_driver()
         except Exception as e:
-            print("Couldn't setup the driver", file=sys.stderr)
+            logger.error("Couldn't setup the driver")
 
     def _usage(self):
-        print(f"""Usage: python3 {sys.argv[0]} [FLAG]... [FILE]...
+        logger.info(f"""Usage: python3 {sys.argv[0]} [FLAG]... [FILE]...
+
 Example: python3 {sys.argv[0]} -b blacklist.txt
 
 Available FLAGS:
@@ -214,6 +217,7 @@ Available FLAGS:
         password_input.send_keys(self.password)
         login_btn = self._driver.find_element(By.CLASS_NAME, "btn-submit")
         login_btn.click()
+        wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "menu-logo-nombre")))
 
 
     def _setup_driver(self):

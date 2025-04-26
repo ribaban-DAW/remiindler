@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from colorama import init, Fore, Style
 from dotenv import load_dotenv
+from getpass import getpass
 import webbrowser
 import readline
 import os
@@ -82,14 +83,19 @@ class Remiindler:
         self.subjects = []
         self._driver = None
         self._is_scrapped = False
+        self._wait_time = 5
 
         self._setup()
+
+    def gui(self):
+        logger.warning("TODO")
 
     def tui(self):
         options = [
             {"name": "Get Assignments", "func": self.get_assignments},
             {"name": "Generate HTML", "func": self.generate_html},
             {"name": "Show Configuration", "func": self.show_config},
+            {"name": "Change login data", "func": lambda: self.config_login_data(True)},
             {"name": "Quit"},
         ]
 
@@ -150,6 +156,7 @@ body {
 	color: var(--foreground-primary);
 }
 </style>
+<link href='styles.css' rel='stylesheet'>
 </head>
 <body>
 """)
@@ -162,9 +169,24 @@ body {
         logger.info("'index.html' generated")
         webbrowser.open("index.html")
 
-
     def show_config(self):
         logger.warning("TODO")
+
+    def config_login_data(self, is_forced = False):
+        self.username = self._parse_data(self._get_login_data("ENV_USERNAME", is_forced))
+        self.password = self._parse_data(self._get_login_data("ENV_PASSWORD", is_forced))
+
+    def _get_login_data(self, env_var, is_forced = False):
+        if is_forced:
+            data = getpass(f"Introduce your {env_var[4:].lower()}: ")
+            return
+
+        data = os.getenv(env_var)
+        if data == None:
+            logger.warning(f"Couldn't find '{env_var}'")
+            data = getpass(f"Introduce your {env_var[4:].lower()}: ")
+
+        return data
 
     def _setup(self):
         blacklist_filename = "blacklist.txt"
@@ -187,8 +209,7 @@ body {
         self._set_blacklist(blacklist_filename)
 
         load_dotenv()
-        self.username = self._parse_env("ENV_USER")
-        self.password = self._parse_env("ENV_PASS")
+        self.config_login_data()
 
         try:
             self._driver = self._setup_driver()
@@ -216,8 +237,7 @@ Available FLAGS:
             logger.info("Blacklist loaded")
 
     # Quick and simple parser to avoid problems with especial characters
-    def _parse_env(self, env_var):
-        data = os.getenv(env_var)
+    def _parse_data(self, data):
         escaped = False
         parsed_data = ""
 
@@ -230,11 +250,18 @@ Available FLAGS:
 
         return parsed_data
 
-    def _login(self):
+    def _login(self, retry = 3):
+        if retry <= 0:
+            raise Exception("Too many retries...")
+
+        expected_url = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/my/"
+        if self._driver.current_url == expected_url:
+            return
+
         logger.info("Logging in...")
         login_url = "https://edea.juntadeandalucia.es/cas/login?service=https%3A%2F%2Feducacionadistancia.juntadeandalucia.es%2Fcentros%2Fmalaga%2Flogin%2Findex.php%3FauthCAS%3DCAS"
         self._driver.get(login_url)
-        wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.ID, "username")))
+        WebDriverWait(self._driver, self._wait_time).until(EC.presence_of_element_located((By.ID, "username")))
 
         user_input = self._driver.find_element(By.ID, "username")
         user_input.send_keys(self.username)
@@ -244,8 +271,16 @@ Available FLAGS:
         logger.debug("Introduced password")
         login_btn = self._driver.find_element(By.CLASS_NAME, "btn-submit")
         login_btn.click()
+
+        try:
+            WebDriverWait(self._driver, self._wait_time).until(EC.presence_of_element_located((By.CLASS_NAME, "menu-logo-nombre")))
+        except:
+            if self._driver.current_url != expected_url:
+                raise Exception("Incorrect username/password, try to reconfigure it!")
+            else:
+                logger.error("Couldn't load the page. Trying again...")
+                self._login(retry - 1)
         logger.debug("Logged in")
-        wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "menu-logo-nombre")))
 
     def _scrap_assignments(self, is_forced = False):
         if self._is_scrapped and not is_forced:
@@ -262,7 +297,7 @@ Available FLAGS:
 
             logger.debug(f"Subject URL: {subject_url}")
             self._driver.get(subject_url)
-            wait = WebDriverWait(self._driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
+            WebDriverWait(self._driver, self._wait_time).until(EC.presence_of_element_located((By.CLASS_NAME, "generaltable")))
 
             table = self._driver.find_element(By.CLASS_NAME, "generaltable")
             rows = table.find_elements(By.XPATH, ".//tr")
@@ -278,6 +313,7 @@ Available FLAGS:
                 assignment = Assignment(id, self.subject_ids[id], text, date, url)
                 self.subjects[index].assignments.append(assignment)
             index += 1
+
         self._is_scrapped = True
 
     def _setup_driver(self):

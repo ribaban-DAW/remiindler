@@ -5,14 +5,18 @@
 Simple script para **recordar** cualquier asignatura que falte por entregar en **Moodle**. Escrito en Python usando [Selenium](https://www.selenium.dev/).
 
 > [!NOTE]
-> Los IDS están hardcodeados para mis asignaturas :rofl:
+> Los IDS y las URLs están hardcodeados para mis asignaturas :rofl:
 
 ## 🏡 Setup
 
-En primer lugar, crea un archivo `.env` siguiendo el `.env.example`
+> [!NOTE]
+>
+> Esto es opcional, lo puedes proporcionar mientras se ejecuta el programa.
+
+Crea un archivo `.env` siguiendo el `.env.example`
 ```
-ENV_USER=your_username
-ENV_PASS=your_password
+ENV_USERNAME=your_username
+ENV_PASSWORD=your_password
 ```
 
 > [!NOTE]

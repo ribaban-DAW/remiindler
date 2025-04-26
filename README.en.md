@@ -2,20 +2,25 @@
 
 ## 🚀 Description
 
-Simple script to **remind** any missing assignment in **Moodle**. Written in Python using [Selenium](https://www.selenium.dev/).
+Simple script to **remind** any assignment not submitted in **Moodle**. Written in Python using [Selenium](https://www.selenium.dev/).
 
 > [!NOTE]
-> IDs are hardcoded for my current subjects :rofl:
+> IDs and URLs are hardcoded for my current subjects :rofl:
 
 ## 🏡 Setup
 
-First of all, create a `.env` file following the `.env.example`
+> [!NOTE]
+>
+> This is optional, you can provide this data on program execution.
+
+Create a `.env` file following the `.env.example`
 ```
-ENV_USER=your_username
-ENV_PASS=your_password
+ENV_USERNAME=your_username
+ENV_PASSWORD=your_password
 ```
 
 > [!NOTE]
+> 
 > If you use special characters at the beginning, such as `'`, `"`, `\`, `#`, add `\` before it.
 > For example:
 > ```

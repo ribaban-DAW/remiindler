@@ -302,7 +302,7 @@ Available FLAGS:
             table = self._driver.find_element(By.CLASS_NAME, "generaltable")
             rows = table.find_elements(By.XPATH, ".//tr")
             for row in rows:
-                if any(x in row.text.lower() for x in self.blacklist) or "no entregado" not in row.text.lower():
+                if any(x in row.text.lower() for x in self.blacklist) or ("no entregado" not in row.text.lower() and "sin entrega" not in row.text.lower()):
                     continue
                 anchor = row.find_element(By.TAG_NAME, "a")
                 url = "" if not anchor else anchor.get_attribute("href")

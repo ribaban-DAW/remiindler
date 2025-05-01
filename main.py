@@ -308,7 +308,7 @@ Available FLAGS:
                 url = "" if not anchor else anchor.get_attribute("href")
                 text = "" if not anchor else anchor.text
 
-                column = row.find_element(By.XPATH, "//td[@class='cell c2']")
+                column = row.find_element(By.CLASS_NAME, "c2")
                 date = "" if not column else column.text
                 assignment = Assignment(id, self.subject_ids[id], text, date, url)
                 self.subjects[index].assignments.append(assignment)

@@ -327,14 +327,14 @@ Available FLAGS:
 if __name__ == "__main__":
     subject_url = "https://educacionadistancia.juntadeandalucia.es/centros/malaga/mod/assign/index.php?id="
     subject_ids = {
-        9051: "Sostenibilidad",
-        4011: "Base de Datos",
-        6585: "Entornos de Desarrollo",
-        6584: "Lenguaje de Marcas",
-        4162: "Digitalización",
-        4161: "IPE",
-        4008: "Programación",
-        4000: "Sistemas Informáticos",
+        10207: "IPE2",
+        2487: "Entorno Cliente",
+        2295: "Entorno Servidor",
+        1755: "Despliegue",
+        1940: "Diseño de Interfaces",
+        2589: "Optativa",
+        8214: "Inglés",
+        4968: "Proyecto Intermodular",
     }
 
     remiindler = Remiindler(subject_url, subject_ids)
